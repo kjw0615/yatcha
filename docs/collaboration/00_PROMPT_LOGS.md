@@ -101,3 +101,16 @@ Godot 4.6 GDScript로 작동하는 'scripts/die_3d.gd' (extends RigidBody3D)를 
 3. `tests/test_die_3d.gd` 실행을 통해 기존 42개 물리/눈 판정 테스트가 100% 정상 통과하는지 검증
 4. 작업 완료 후 'docs/collaboration/06_CODEX_PHYSICS_IMPROVEMENTS.md'에 보고서를 작성해 주세요.
 ```
+
+## Prompt Session #4 - 2026-11-19: 모듈형 Git 브랜칭 및 PR 워크플로우 전환 지시
+
+### 1. 사용자 요구사항
+- 모듈화 개발 원칙 적용
+- 각자 기능별 브랜치를 분기하여 작업 후 원격 푸시 및 Pull Request(PR) 제출
+- 팀장 Antigravity가 PR을 검토·정리하여 `main` 브랜치에 병합 및 빌드 관리
+
+### 2. 팀원(Claude & Codex) 공지 프롬프트
+- **Claude (`t3j`) 대상 공지**:
+  - `main` 직접 작업 금지. UI/HUD/연출 작업 시 `feature/ui-*` 브랜치 분기 후 PR 제출 지시.
+- **Codex (`t3k`) 대상 공지**:
+  - `main` 직접 작업 금지. 물리/알고리즘/3D 에셋 작업 시 `feature/physics-*` 브랜치 분기 후 PR 제출 지시.
