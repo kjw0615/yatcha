@@ -2,3 +2,5 @@
 tools/
 
 .tmp.drive*
+
+build/prototype/*.exe
