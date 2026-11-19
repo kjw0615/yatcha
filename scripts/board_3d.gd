@@ -178,7 +178,14 @@ func set_held(index: int, is_held: bool) -> void:
 	var die = dice_nodes[index]
 	current_held_states[index] = is_held
 	if is_held:
-		var target_tf = Transform3D(Basis(), KEEP_SLOTS[index])
+		# 윗면 눈을 유지한 채 가장 가까운 축만 수직으로 정렬 (Basis()로 두면 항상 1이 위로 옴)
+		var current = die.global_transform.basis.orthonormalized()
+		var up_axis: Vector3 = current.y
+		for axis in [-current.y, current.x, -current.x, current.z, -current.z]:
+			if axis.dot(Vector3.UP) > up_axis.dot(Vector3.UP):
+				up_axis = axis
+		var upright = Basis(Quaternion(up_axis, Vector3.UP)) * current
+		var target_tf = Transform3D(upright.orthonormalized(), KEEP_SLOTS[index])
 		die.set_kept(true, target_tf, 0.35)
 	else:
 		die.set_kept(false)

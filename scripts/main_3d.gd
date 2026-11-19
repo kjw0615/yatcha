@@ -70,7 +70,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					commit_score()
 
 func _on_roll_press_started() -> void:
-	if busy or finished or rolls >= 3 or held.all(func(value): return value):
+	if is_shaking_cup or busy or finished or rolls >= 3 or held.all(func(value): return value):
 		return
 	is_space_pressed = true
 	is_shaking_cup = true
@@ -107,6 +107,7 @@ func label_in(parent: Node, text_value: String, font_size: int = 17, color: Colo
 func button_in(parent: Node, text_value: String, action: Callable) -> Button:
 	var item = Button.new()
 	item.text = text_value
+	item.focus_mode = Control.FOCUS_NONE
 	item.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	item.add_theme_stylebox_override("normal", style(Color("203848")))
 	item.add_theme_stylebox_override("hover", style(Color("31566a")))
@@ -192,6 +193,7 @@ func build_ui() -> void:
 		tray.add_child(column)
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(76, 50)
+		btn.focus_mode = Control.FOCUS_NONE
 		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		btn.add_theme_stylebox_override("normal", style(Color("203848")))
 		btn.add_theme_stylebox_override("hover", style(Color("31566a")))
@@ -219,6 +221,7 @@ func build_ui() -> void:
 	roll_button = Button.new()
 	roll_button.text = "주사위 통 흔들기 및 던지기 (Space)"
 	roll_button.custom_minimum_size.y = 52
+	roll_button.focus_mode = Control.FOCUS_NONE
 	roll_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	roll_button.add_theme_font_size_override("font_size", 18)
 	roll_button.add_theme_stylebox_override("normal", style(Color("1f6b5b")))
@@ -252,6 +255,7 @@ func build_ui() -> void:
 		for p in range(2):
 			var cell = Button.new()
 			cell.custom_minimum_size = Vector2(76, 34)
+			cell.focus_mode = Control.FOCUS_NONE
 			cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			cell.pressed.connect(select_category.bind(i))
 			score_grid.add_child(cell)
@@ -401,7 +405,7 @@ func refresh() -> void:
 		if busy:
 			status_label.text = "3D 물리 주사위가 트레이 안에서 구르는 중입니다..."
 		elif rolls > 0:
-			status_label.text = "1~5번 키나 주사위를 눌러 킵(Keep)하거나, 오른쪽에서 족보를 선택하세요."
+			status_label.text = "1~5번 키나 아래 주사위 버튼을 눌러 킵(Keep)하거나, 오른쪽에서 족보를 선택하세요."
 			if rolls == 3:
 				status_label.text = "굴리기를 모두 소진했습니다. 점수를 기록할 족보를 선택하세요."
 	
@@ -435,6 +439,8 @@ func refresh() -> void:
 		status_label.text = "모든 판이 끝났습니다. 새 게임으로 다시 도전하세요!"
 
 func show_rules() -> void:
+	if is_shaking_cup:
+		return
 	var dialog = AcceptDialog.new()
 	dialog.title = "요트 다이스 3D 규칙 및 조작법"
 	dialog.dialog_text = "두 명이 번갈아 12번씩 플레이합니다.\n\n[새로운 3D 조작법]\n• Space 길게 누르기(또는 버튼 누르고 있기): 3D 주사위 통 흔들기\n• Space 떼기: 원하는 타이밍에 트레이 안으로 주사위 던지기\n• 1~5 키 또는 주사위 버튼: 킵(Keep) / 롤(Roll) 전환\n• 점수표 클릭 후 Enter: 점수 확정\n\n[규칙]\n1. 턴당 최대 3회 굴릴 수 있습니다.\n2. 보관(Keep)된 주사위는 통에 들어가지 않고 상단에 유지됩니다.\n3. 1~6 상단 점수 합계 63점 이상 시 보너스 +35점 획득."
@@ -444,7 +450,7 @@ func show_rules() -> void:
 	dialog.popup_centered(Vector2i(650, 500))
 
 func confirm_restart() -> void:
-	if busy:
+	if busy or is_shaking_cup:
 		return
 	var dialog = ConfirmationDialog.new()
 	dialog.title = "새 게임"
