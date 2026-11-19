@@ -30,6 +30,10 @@ var history_label: Label
 var history: Array = []
 var rng = RandomNumberGenerator.new()
 
+# 스페이스바 누르고 있기(흔들기) 상태 관리
+var is_space_pressed: bool = false
+var is_shaking_cup: bool = false
+
 func _ready() -> void:
 	rng.randomize()
 	var ui_theme = Theme.new()
@@ -43,14 +47,35 @@ func _ready() -> void:
 	new_game()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
+	if event is InputEventKey:
 		if event.keycode == KEY_SPACE:
-			roll_dice()
-		elif event.keycode >= KEY_1 and event.keycode <= KEY_5:
-			toggle_hold(event.keycode - KEY_1)
-		elif event.keycode == KEY_ENTER:
-			if selected >= 0 and not commit_button.disabled:
-				commit_score()
+			if event.pressed and not event.echo:
+				_on_roll_press_started()
+			elif not event.pressed:
+				_on_roll_press_released()
+		elif event.pressed and not event.echo:
+			if event.keycode >= KEY_1 and event.keycode <= KEY_5:
+				toggle_hold(event.keycode - KEY_1)
+			elif event.keycode == KEY_ENTER:
+				if selected >= 0 and not commit_button.disabled:
+					commit_score()
+
+func _on_roll_press_started() -> void:
+	if busy or finished or rolls >= 3 or held.all(func(value): return value):
+		return
+	is_space_pressed = true
+	is_shaking_cup = true
+	selected = -1
+	refresh()
+	board_3d.start_shaking_cup(held)
+
+func _on_roll_press_released() -> void:
+	if is_shaking_cup:
+		is_shaking_cup = false
+		is_space_pressed = false
+		busy = true
+		refresh()
+		board_3d.release_and_throw_cup()
 
 func style(color: Color, radius: int = 12) -> StyleBoxFlat:
 	var box = StyleBoxFlat.new()
@@ -115,7 +140,7 @@ func build_ui() -> void:
 	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(brand)
 	label_in(brand, "YACHT CLUB 3D", 32, MINT)
-	label_in(brand, "물리 기반 3D 다이스 시뮬레이션 [Space: 굴리기 / 1~5: 킵]", 15, MUTED)
+	label_in(brand, "물리 기반 3D 다이스 트레이 & 컵 흔들기 [Space 길게 누르고 떼기 / 1~5: 킵]", 15, MUTED)
 	button_in(header, "게임 규칙", show_rules)
 	button_in(header, "새 게임", confirm_restart)
 	
@@ -146,6 +171,7 @@ func build_ui() -> void:
 	board_3d = Board3DScene.instantiate()
 	subviewport.add_child(board_3d)
 	board_3d.roll_finished.connect(_on_3d_roll_finished)
+	board_3d.cup_state_changed.connect(_on_cup_state_changed)
 	
 	# 하단 킵(Keep) 상태 표시 및 토글 버튼 바
 	var tray = HBoxContainer.new()
@@ -168,11 +194,20 @@ func build_ui() -> void:
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hold_labels.append(caption)
 	
-	roll_button = button_in(left, "주사위 굴리기 (Space)", roll_dice)
-	roll_button.custom_minimum_size.y = 50
+	# 마우스로도 누르고 있다 뗄 수 있는 굴리기 버튼
+	roll_button = Button.new()
+	roll_button.text = "주사위 통 흔들기 및 던지기 (Space)"
+	roll_button.custom_minimum_size.y = 52
+	roll_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	roll_button.add_theme_font_size_override("font_size", 18)
 	roll_button.add_theme_stylebox_override("normal", style(Color("1f6b5b")))
 	roll_button.add_theme_stylebox_override("hover", style(Color("2a8f7a")))
+	roll_button.add_theme_stylebox_override("pressed", style(Color("bf8438")))
+	roll_button.add_theme_stylebox_override("disabled", style(Color("14232e")))
+	roll_button.button_down.connect(_on_roll_press_started)
+	roll_button.button_up.connect(_on_roll_press_released)
+	left.add_child(roll_button)
+	
 	status_label = label_in(left, "", 15, WHITE)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	
@@ -233,6 +268,8 @@ func new_game() -> void:
 	selected = -1
 	busy = false
 	finished = false
+	is_shaking_cup = false
+	is_space_pressed = false
 	history.clear()
 	held = [false, false, false, false, false]
 	dice = [1, 1, 1, 1, 1]
@@ -242,21 +279,16 @@ func new_game() -> void:
 	refresh()
 
 func toggle_hold(index: int) -> void:
-	if rolls == 0 or busy or finished:
+	if rolls == 0 or busy or finished or is_shaking_cup:
 		return
 	held[index] = not held[index]
 	board_3d.set_held(index, held[index])
 	refresh()
 
-func roll_dice() -> void:
-	if busy or finished or rolls >= 3 or held.all(func(value): return value):
-		return
-	busy = true
-	selected = -1
-	refresh()
-	
-	# 3D 물리 주사위 굴리기 발동
-	board_3d.roll(held)
+func _on_cup_state_changed(shaking: bool, power: float) -> void:
+	if shaking:
+		status_label.text = "통을 흔드는 중입니다! (파워: %.1fx) - 원하는 타이밍에 키나 버튼을 떼어 던지세요!" % power
+		roll_button.text = "흔드는 중! (떼면 던지기)"
 
 func _on_3d_roll_finished(new_values: Array) -> void:
 	for i in range(5):
@@ -306,17 +338,21 @@ func refresh() -> void:
 			completed += 1
 	turn_label.text = "PLAYER %d의 차례" % (player + 1)
 	phase_label.text = "ROUND %02d / 12     ·     굴리기 %d / 3" % [mini(12, completed + 1), rolls]
-	roll_button.text = "주사위 굴리기 (Space) · %d회 남음" % (3 - rolls)
+	
+	if not is_shaking_cup:
+		roll_button.text = "주사위 통 흔들기 (Space 길게 누르기) · %d회 남음" % (3 - rolls)
+	
 	roll_button.disabled = busy or finished or rolls >= 3 or held.all(func(value): return value)
 	commit_button.disabled = selected < 0 or busy or finished
 	
-	status_label.text = "Space 키나 버튼으로 주사위를 굴려 턴을 시작하세요."
-	if busy:
-		status_label.text = "3D 물리 주사위가 구르는 중입니다..."
-	elif rolls > 0:
-		status_label.text = "1~5번 키나 주사위를 눌러 킵(Keep)하거나, 오른쪽에서 족보를 선택하세요."
-		if rolls == 3:
-			status_label.text = "굴리기를 모두 소진했습니다. 점수를 기록할 족보를 선택하세요."
+	if not is_shaking_cup:
+		status_label.text = "Space 키나 버튼을 길게 눌러 통을 흔든 뒤 떼어서 던지세요."
+		if busy:
+			status_label.text = "3D 물리 주사위가 트레이 안에서 구르는 중입니다..."
+		elif rolls > 0:
+			status_label.text = "1~5번 키나 주사위를 눌러 킵(Keep)하거나, 오른쪽에서 족보를 선택하세요."
+			if rolls == 3:
+				status_label.text = "굴리기를 모두 소진했습니다. 점수를 기록할 족보를 선택하세요."
 	
 	commit_button.text = "점수표에서 족보를 선택하세요"
 	if selected >= 0:
@@ -350,11 +386,11 @@ func refresh() -> void:
 func show_rules() -> void:
 	var dialog = AcceptDialog.new()
 	dialog.title = "요트 다이스 3D 규칙 및 조작법"
-	dialog.dialog_text = "두 명이 번갈아 12번씩 플레이합니다.\n\n[조작법]\n• Space: 주사위 굴리기\n• 1~5 키 또는 주사위 버튼: 킵(Keep) / 롤(Roll) 전환\n• 점수표 클릭 후 Enter: 점수 확정\n\n[규칙]\n1. 턴당 최대 3회 굴릴 수 있습니다.\n2. 보관(Keep)된 주사위는 다시 굴리지 않습니다.\n3. 1~6 상단 점수 합계 63점 이상 시 보너스 +35점 획득."
+	dialog.dialog_text = "두 명이 번갈아 12번씩 플레이합니다.\n\n[새로운 3D 조작법]\n• Space 길게 누르기(또는 버튼 누르고 있기): 3D 주사위 통 흔들기\n• Space 떼기: 원하는 타이밍에 트레이 안으로 주사위 던지기\n• 1~5 키 또는 주사위 버튼: 킵(Keep) / 롤(Roll) 전환\n• 점수표 클릭 후 Enter: 점수 확정\n\n[규칙]\n1. 턴당 최대 3회 굴릴 수 있습니다.\n2. 보관(Keep)된 주사위는 통에 들어가지 않고 상단에 유지됩니다.\n3. 1~6 상단 점수 합계 63점 이상 시 보너스 +35점 획득."
 	add_child(dialog)
 	dialog.confirmed.connect(dialog.queue_free)
 	dialog.canceled.connect(dialog.queue_free)
-	dialog.popup_centered(Vector2i(650, 480))
+	dialog.popup_centered(Vector2i(650, 500))
 
 func confirm_restart() -> void:
 	if busy:

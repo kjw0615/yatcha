@@ -47,3 +47,22 @@ Godot 4.6 GDScript로 작동하는 'scripts/die_3d.gd' (extends RigidBody3D)를 
 
 작업 완료 후 알려주세요.
 ```
+
+## Prompt Session #2 - 2026-11-19: 3D 보드판 탈출 방지벽, 6면 주사위 핍 텍스처, 컵 흔들기 조작 추가
+
+### 1. 사용자 요구사항
+1. 주사위가 보드판 밖으로 튕겨져 나가지 않게 조치
+2. 주사위에 숫자(핍 눈) 표시
+3. 주사위 통(Cup) 안에 넣고 흔들다가 원하는 타이밍에 던질 수 있는 메커닉 구현
+
+### 2. 구현 내역
+1. **보드판 탈출 방지**:
+   - `scenes/board_3d.tscn`: 벽 높이를 2.5m -> 5.0m로 2배 확장하고 보이지 않는 상단 물리 천장(`TrayCeiling` StaticBody3D) 추가.
+   - `scenes/die_3d.tscn`: 선형/각속도 댐핑(linear_damp 0.25, angular_damp 0.35) 및 반발계수 조절.
+2. **주사위 6면 핍(숫자) 텍스처**:
+   - `assets/textures/die_face_1.png` ~ `die_face_6.png` 렌더링 및 `die_3d.tscn` 6면에 정밀 매핑 (1의 반대 6, 2의 반대 5, 3의 반대 4).
+3. **주사위 통(Cup) 흔들기 및 던지기 조작**:
+   - `scripts/board_3d.gd`: `DiceCup` 노드 및 반투명 3D 컵 구현, `start_shaking_cup()`, `release_and_throw_cup()`, 동적 파워 충격량 전달.
+   - `scripts/main_3d.gd`: 스페이스바 길게 누르기(또는 마우스 버튼 누르고 있기)로 컵을 흔들고, 키를 떼는 순간 원하는 타이밍에 트레이 안으로 주사위를 투척.
+4. **프로토타입 재빌드**:
+   - `build/prototype/YachtClub3D.exe` 및 `.pck` 리빌드 완료.
