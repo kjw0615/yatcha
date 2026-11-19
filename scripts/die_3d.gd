@@ -15,8 +15,8 @@ signal stopped(value: int)
 @export_range(0.0, 2.0) var settle_time: float = 0.35
 @export_range(0.0, 2.0) var minimum_roll_time: float = 0.2
 @export var require_contact_to_settle: bool = true
-@export_range(0.0, 5.0) var roll_linear_damp: float = 0.15
-@export_range(0.0, 5.0) var roll_angular_damp: float = 0.25
+@export_range(0.0, 5.0) var roll_linear_damp: float = 0.3
+@export_range(0.0, 5.0) var roll_angular_damp: float = 0.45
 
 @export_group("Keep")
 @export_range(0.0, 2.0) var keep_duration: float = 0.3
@@ -29,6 +29,12 @@ var is_kept: bool:
 var is_rolling: bool:
 	get:
 		return _rolling
+
+var containment_enabled: bool = false
+var containment_frame := Transform3D.IDENTITY
+var containment_min := Vector3(-4.6, 0.5, -3.6)
+var containment_max := Vector3(4.6, 5.1, 3.6)
+var max_up_speed: float = 3.5
 
 var _kept: bool = false
 var _rolling: bool = false
@@ -45,6 +51,10 @@ func _ready() -> void:
 	_rng.randomize()
 	linear_damp = roll_linear_damp
 	angular_damp = roll_angular_damp
+	var material := PhysicsMaterial.new()
+	material.friction = 0.75
+	material.bounce = 0.08
+	physics_material_override = material
 	can_sleep = true
 	continuous_cd = true
 	# Contact reporting works without the more expensive contact_monitor signals.
@@ -74,15 +84,33 @@ func roll(impulse: Vector3, torque: Vector3) -> void:
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
-	if not _launch_pending or _kept:
+	if _kept or freeze or (state.sleeping and not _launch_pending):
 		return
-	# Wait for the physics step: a newly unfrozen body needs its inertia updated
-	# before torque is applied. Also reset prior throw velocities in this state.
-	_launch_pending = false
-	state.linear_velocity = Vector3.ZERO
-	state.angular_velocity = Vector3.ZERO
-	state.apply_central_impulse(_pending_impulse)
-	state.apply_torque_impulse(_pending_torque)
+	if _launch_pending:
+		_launch_pending = false
+		state.linear_velocity = Vector3.ZERO
+		state.angular_velocity = Vector3.ZERO
+		state.apply_central_impulse(_pending_impulse)
+		state.apply_torque_impulse(_pending_torque)
+	var velocity := state.linear_velocity
+	velocity.y = minf(velocity.y, max_up_speed)
+	state.linear_velocity = velocity.limit_length(10.0)
+	state.angular_velocity = state.angular_velocity.limit_length(16.0)
+	if containment_enabled:
+		var pose := state.transform
+		var local_position := containment_frame.affine_inverse() * pose.origin
+		var local_velocity := containment_frame.basis.inverse() * state.linear_velocity
+		for axis in range(3):
+			if local_position[axis] < containment_min[axis]:
+				local_position[axis] = containment_min[axis]
+				local_velocity[axis] = maxf(local_velocity[axis], 0.0)
+			elif local_position[axis] > containment_max[axis]:
+				local_position[axis] = containment_max[axis]
+				local_velocity[axis] = minf(local_velocity[axis], 0.0)
+		pose.origin = containment_frame * local_position
+		state.transform = pose
+		state.linear_velocity = containment_frame.basis * local_velocity
+
 
 
 ## Convenience throw for a roughly unit-sized, 1 kg die; tune for your scene.

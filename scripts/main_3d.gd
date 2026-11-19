@@ -34,6 +34,15 @@ var rng = RandomNumberGenerator.new()
 var is_space_pressed: bool = false
 var is_shaking_cup: bool = false
 
+# 흔들기 파워 게이지 (board_3d의 shake_intensity 범위 0.2~1.8, 던지기 유효 범위 0.5~2.0)
+const POWER_MIN = 0.2
+const POWER_MAX = 1.8
+const POWER_WEAK = 0.5
+const POWER_STRONG = 1.3
+var power_bar: ProgressBar
+var power_label: Label
+var power_zone = -1
+
 func _ready() -> void:
 	rng.randomize()
 	var ui_theme = Theme.new()
@@ -194,6 +203,18 @@ func build_ui() -> void:
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hold_labels.append(caption)
 	
+	# 흔들기 파워 게이지: 구간별 색과 문구로 던질 타이밍을 안내
+	power_label = label_in(left, "", 14, MUTED)
+	power_bar = ProgressBar.new()
+	power_bar.min_value = POWER_MIN
+	power_bar.max_value = POWER_MAX
+	power_bar.step = 0.01
+	power_bar.show_percentage = false
+	power_bar.custom_minimum_size.y = 16
+	power_bar.add_theme_stylebox_override("background", style(Color("14232e"), 8))
+	left.add_child(power_bar)
+	reset_power_gauge()
+	
 	# 마우스로도 누르고 있다 뗄 수 있는 굴리기 버튼
 	roll_button = Button.new()
 	roll_button.text = "주사위 통 흔들기 및 던지기 (Space)"
@@ -286,9 +307,39 @@ func toggle_hold(index: int) -> void:
 	refresh()
 
 func _on_cup_state_changed(shaking: bool, power: float) -> void:
-	if shaking:
-		status_label.text = "통을 흔드는 중입니다! (파워: %.1fx) - 원하는 타이밍에 키나 버튼을 떼어 던지세요!" % power
-		roll_button.text = "흔드는 중! (떼면 던지기)"
+	if not shaking:
+		reset_power_gauge()
+		return
+	power_bar.value = power
+	var zone = 0
+	var color = Color("6f8aa0")
+	var text = "약함 · 조금 더 흔드세요"
+	if power >= POWER_MAX - 0.02:
+		zone = 3
+		color = Color("ff8a5c")
+		text = "MAX · 지금 떼어서 던지세요!"
+	elif power >= POWER_STRONG:
+		zone = 2
+		color = Color("f2b56b")
+		text = "강함 · 멀리 굴러갑니다"
+	elif power >= POWER_WEAK:
+		zone = 1
+		color = MINT
+		text = "적정 · 언제든 던질 수 있습니다"
+	if zone != power_zone:
+		power_zone = zone
+		power_bar.add_theme_stylebox_override("fill", style(color, 8))
+		power_label.add_theme_color_override("font_color", color)
+		power_label.text = "흔들기 파워  %s" % text
+	status_label.text = "통을 흔드는 중입니다! 원하는 타이밍에 키나 버튼을 떼어 던지세요. (파워 %.1fx)" % power
+	roll_button.text = "흔드는 중! (떼면 던지기)"
+
+func reset_power_gauge() -> void:
+	power_zone = -1
+	power_bar.value = POWER_MIN
+	power_bar.add_theme_stylebox_override("fill", style(Color("6f8aa0"), 8))
+	power_label.add_theme_color_override("font_color", MUTED)
+	power_label.text = "흔들기 파워  Space를 길게 눌러 통을 흔드세요"
 
 func _on_3d_roll_finished(new_values: Array) -> void:
 	for i in range(5):

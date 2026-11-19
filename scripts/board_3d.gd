@@ -30,6 +30,12 @@ func _ready() -> void:
 	rng.randomize()
 	build_dice_cup()
 	spawn_dice()
+	var material := PhysicsMaterial.new()
+	material.friction = 0.8
+	material.bounce = 0.0
+	for child in get_children():
+		if child is StaticBody3D:
+			child.physics_material_override = material
 
 func build_dice_cup() -> void:
 	dice_cup = Node3D.new()
@@ -45,9 +51,9 @@ func build_dice_cup() -> void:
 	cup_mesh.mesh = cylinder
 	
 	var cup_mat = StandardMaterial3D.new()
-	cup_mat.albedo_color = Color(0.72, 0.42, 0.22, 0.85)
-	cup_mat.roughness = 0.3
-	cup_mat.metallic = 0.2
+	cup_mat.albedo_color = Color(0.88, 0.76, 0.58, 0.9)
+	cup_mat.roughness = 0.2
+	cup_mat.metallic = 0.1
 	cup_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cup_mesh.material_override = cup_mat
 	dice_cup.add_child(cup_mesh)
@@ -93,6 +99,8 @@ func spawn_dice() -> void:
 		die.name = "Die3D_%d" % i
 		die.position = KEEP_SLOTS[i]
 		add_child(die)
+		die.containment_enabled = true
+		die.containment_frame = global_transform
 		dice_nodes.append(die)
 		die.stopped.connect(_on_single_die_stopped.bind(i))
 		die.freeze = true
@@ -143,23 +151,20 @@ func execute_throw(power: float = 1.0) -> void:
 			pending_stops += 1
 			die.freeze = false
 			# 컵 위치에서 앞으로 발사
-			die.position = dice_cup.position + Vector3(
-				rng.randf_range(-0.6, 0.6),
-				rng.randf_range(-0.3, 0.1),
-				rng.randf_range(-0.5, 0.2)
-			)
+			die.position = Vector3((i - 2) * 1.8, 3.4, 1.0)
+
 			die.linear_velocity = Vector3.ZERO
 			die.angular_velocity = Vector3.ZERO
 			
 			var impulse = Vector3(
 				rng.randf_range(-2.2, 2.2) * throw_speed,
-				rng.randf_range(1.2, 3.2) * throw_speed,
-				rng.randf_range(-4.5, -2.0) * throw_speed
+				rng.randf_range(0.4, 1.0) * throw_speed,
+				rng.randf_range(-2.5, -1.5) * throw_speed
 			)
 			var torque = Vector3(
-				rng.randf_range(-22.0, 22.0) * throw_speed,
-				rng.randf_range(-22.0, 22.0) * throw_speed,
-				rng.randf_range(-22.0, 22.0) * throw_speed
+				rng.randf_range(-1.2, 1.2) * throw_speed,
+				rng.randf_range(-1.2, 1.2) * throw_speed,
+				rng.randf_range(-1.2, 1.2) * throw_speed
 			)
 			die.roll(impulse, torque)
 
