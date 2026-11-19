@@ -139,6 +139,24 @@ func release_and_throw_cup() -> void:
 	
 	# 주사위들을 트레이 바닥으로 물리적으로 투척
 	execute_throw(shake_intensity)
+	# 최대 4.0초 안전 타임아웃 (멈춤 지연으로 인한 게임 소프트락 완전 방지)
+	await get_tree().create_timer(4.0).timeout
+	if is_rolling_phase and pending_stops > 0:
+		_force_settle_all()
+
+func _force_settle_all() -> void:
+	if not is_rolling_phase:
+		return
+	is_rolling_phase = false
+	pending_stops = 0
+	var values = []
+	for die in dice_nodes:
+		if not die.is_kept:
+			die.linear_velocity = Vector3.ZERO
+			die.angular_velocity = Vector3.ZERO
+			die.freeze = true
+		values.append(die.value if die.is_kept else die.get_top_face())
+	roll_finished.emit(values)
 
 func execute_throw(power: float = 1.0) -> void:
 	is_rolling_phase = true

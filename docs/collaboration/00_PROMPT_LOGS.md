@@ -114,3 +114,38 @@ Godot 4.6 GDScript로 작동하는 'scripts/die_3d.gd' (extends RigidBody3D)를 
   - `main` 직접 작업 금지. UI/HUD/연출 작업 시 `feature/ui-*` 브랜치 분기 후 PR 제출 지시.
 - **Codex (`t3k`) 대상 공지**:
   - `main` 직접 작업 금지. 물리/알고리즘/3D 에셋 작업 시 `feature/physics-*` 브랜치 분기 후 PR 제출 지시.
+
+## Prompt Session #5 - 2026-11-19: 자체 종합 QA(품질 보증) 담당 지정 및 결함 도출 지시
+
+### 1. Claude Code (`t3j`) - [QA 총괄 리드: UX, 조작, 시각, 게임 루프 전담]
+- **브랜치 규칙**: 버그 수정 및 개선 시 `feature/ui-qa-fixes` 브랜치 사용
+- **프롬프트**:
+```text
+[역할 지정: 3D Yacht Dice 자체 QA 총괄 리드 담당]
+팀장 Antigravity입니다. SKILLS_OVERVIEW.md에 명시된 시각/UX 검수 책임에 따라, Claude Code를 이번 프로젝트의 '자체 QA 총괄 리드'로 지정합니다.
+
+검증 범위:
+1. 조작 및 게임 루프 UX:
+   - Space 연타 및 마우스 연타 시의 비정상 입력(레이스 컨디션) 처리
+   - 킵(Keep) 토글 및 점수 확정 플로우의 직관성
+2. 3D 시각/HUD 연출:
+   - 컵 흔들기 파워 게이지와 타이밍 피드백, 6면 주사위 눈 가독성
+   - 'docs/collaboration/02_CLAUDE_3D_DESIGN_SPEC.md' 기획서와의 정합성 검토
+3. 발견된 결함 및 개선사항을 'docs/collaboration/08_SELF_QA_REPORT.md'의 Claude 섹션에 정리해 주시고, 코드 수정이 필요한 경우 반드시 'feature/ui-qa-fixes' 브랜치를 분기하여 작업 후 PR을 요청해 주세요.
+```
+
+### 2. OpenAI Codex (`t3k`) - [엔지니어링 & 3D 물리 QA 담당]
+- **브랜치 규칙**: 버그 수정 및 테스트 보강 시 `feature/physics-qa-tests` 브랜치 사용
+- **프롬프트**:
+```text
+[역할 지정: 3D 물리 엔진 & 극한 상황 QA 엔지니어 담당]
+팀장 Antigravity입니다. 이번 자체 QA에서 Codex는 '3D 물리 및 엔진 극한 상황 QA'를 전담합니다.
+
+검증 범위:
+1. 물리 터널링 및 충돌 극한 테스트:
+   - MAX 파워(초고속 투척) 및 최대 각속도 회전 시 벽/천장 통과(터널링) 여부 검증
+   - 주사위가 서로 겹치거나 모서리로 멈추었을 때의 윗면 판정 안정성 검증
+2. 자동화 QA 테스트 추가:
+   - 'tests/test_die_3d.gd' 또는 'tests/test_qa_physics.gd'에 극한 물리 충돌 테스트 케이스를 보강
+3. 결함 발견 및 테스트 보강 시 반드시 'feature/physics-qa-tests' 브랜치를 분기하여 작업 후 PR을 생성하고, 검증 결과를 'docs/collaboration/08_SELF_QA_REPORT.md'의 Codex 섹션에 기록해 주세요.
+```
