@@ -56,7 +56,9 @@ func _ready() -> void:
 	new_game()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey:
+	if event is InputEventMouseMotion and is_shaking_cup:
+		board_3d.handle_mouse_motion(event.relative)
+	elif event is InputEventKey:
 		if event.keycode == KEY_SPACE:
 			if event.pressed and not event.echo:
 				_on_roll_press_started()
@@ -401,7 +403,7 @@ func refresh() -> void:
 	commit_button.disabled = selected < 0 or busy or finished
 	
 	if not is_shaking_cup:
-		status_label.text = "Space 키나 버튼을 길게 눌러 통을 흔든 뒤 떼어서 던지세요."
+		status_label.text = "Space 키(또는 버튼)를 누른 채 마우스를 흔들어 컵을 흔든 뒤, 원하는 순간에 떼어 던지세요."
 		if busy:
 			status_label.text = "3D 물리 주사위가 트레이 안에서 구르는 중입니다..."
 		elif rolls > 0:
